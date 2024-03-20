@@ -5,6 +5,8 @@ const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const MongoDBStore = require("connect-mongodb-session")(session);
+const csrf = require("csurf");
+const flash = require("connect-flash");
 
 const errorController = require("./controllers/error");
 const User = require("./models/user");
@@ -17,6 +19,7 @@ const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: "sessions",
 });
+const csrfProtection = csrf();
 
 //  to set the folder for serving the html dynamic files
 app.set("view engine", "ejs");
@@ -42,6 +45,9 @@ app.use(
   })
 );
 
+app.use(csrfProtection);
+app.use(flash());
+
 // app.use((req, res, next) => {
 //   User.findById("65f7fa0e4fa34232ffd1266e")
 //     .then((user) => {
@@ -63,6 +69,12 @@ app.use((req, res, next) => {
     .catch((err) => console.log(err));
 });
 
+app.use((req, res, next) => {
+  res.locals.isAuthenticated = req.session.isLoggedIn;
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
+
 // localhost:3000/admin/"paths"
 app.use("/admin", adminRoutes);
 // localhost:3000/"paths"
@@ -74,18 +86,6 @@ app.use(errorController.get404);
 mongoose
   .connect(MONGODB_URI)
   .then((result) => {
-    User.findOne().then((user) => {
-      if (!user) {
-        const user = new User({
-          name: "Naga",
-          email: "naga@test.com",
-          cart: {
-            items: [],
-          },
-        });
-        user.save();
-      }
-    });
     app.listen(3000);
   })
   .catch((err) => {
